@@ -186,6 +186,10 @@ bool edCFiler_CDVD::open(edFILEH* outFile, char* unformatedFilePath)
 #else
 				char* pcFileFull = unformatedFilePath += strlen("<CDVD>");
 
+				if (pcFileFull[0] == '0') {
+					pcFileFull += 3;
+				}
+
 				fp = fopen(pcFileFull, "rb");
 
 				if (fp) {
