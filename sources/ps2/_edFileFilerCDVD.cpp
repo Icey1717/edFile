@@ -184,9 +184,7 @@ bool edCFiler_CDVD::open(edFILEH* outFile, char* unformatedFilePath)
 					edDebugPrintf(sz_FileNotFound_00431280);
 				}
 #else
-				pcVar6 = edFilePathGetFilePath(fullFilePath);
-
-				char* pcFileFull = FormatForPC(pcVar6);
+				char* pcFileFull = unformatedFilePath += strlen("<CDVD>");
 
 				fp = fopen(pcFileFull, "rb");
 
