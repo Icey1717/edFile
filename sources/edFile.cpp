@@ -1,5 +1,5 @@
 #include "edFile.h"
-#include "edSystem.h"
+#include "EdenLib/edSys/sources/EdSystem.h"
 #include "edMem.h"
 
 #include "ps2/_edFileFilerCDVD.h"
@@ -8,7 +8,7 @@
 byte edFileHandleTable[16];
 edFILEH edFileHandleData[16];
 
-edSysHandlerFile edFileHandlers = edSysHandlerFile(&g_SysHandlersNodeTable_00489170, 0x10, 6);
+edSysHandlerFile edFileHandlers;
 
 void* GetInternalData_0025b2e0(edFILEH* pDebugBankData)
 {
@@ -166,7 +166,7 @@ edFILEH* edFileOpen(char* szFilePath, uint flags)
 	return pFile;
 }
 
-uint GetFileSize_0025bd70(edFILEH* pDebugBank)
+uint edFileLoadSize(edFILEH* pDebugBank)
 {
 	uint uVar1;
 
@@ -177,39 +177,41 @@ uint GetFileSize_0025bd70(edFILEH* pDebugBank)
 	return uVar1;
 }
 
-bool SetRead_0025be80(edFILEH* pDebugBank, char* param_2, uint size)
+bool edFileRead(edFILEH* pFile, char* pDst, uint size)
 {
 	byte bVar2;
-	bool bVar1;
-	edCFiler_28* peVar3;
-	byte* pbVar4;
-	int iVar5;
+	bool bSuccess;
+	edCFiler_28* pFilerData;
+	int handleIndex;
 
-	peVar3 = pDebugBank->pOwningFiler->GetGlobalC_0x1c();
-	SetBankReadStream(peVar3, pDebugBank, param_2, size);
-	if ((pDebugBank->openFlags & 8) == 0) {
-		edFileGetFiler(pDebugBank->pOwningFiler);
-		iVar5 = 0;
+	pFilerData = pFile->pOwningFiler->GetGlobalC_0x1c();
+	SetBankReadStream(pFilerData, pFile, pDst, size);
+
+	if ((pFile->openFlags & 8) == 0) {
+		edFileGetFiler(pFile->pOwningFiler);
+		handleIndex = 0;
 		do {
-			if (&edFileHandleData[iVar5] == pDebugBank) {
-				bVar2 = edFileHandleTable[iVar5];
+			if (&edFileHandleData[handleIndex] == pFile) {
+				bVar2 = edFileHandleTable[handleIndex];
 				goto LAB_0025bf20;
 			}
-			iVar5 = iVar5 + 1;
-		} while (iVar5 < 0x10);
+			handleIndex = handleIndex + 1;
+		} while (handleIndex < 0x10);
+
 		bVar2 = 0;
 	LAB_0025bf20:
 		if (bVar2 == 0) {
-			bVar1 = true;
+			bSuccess = true;
 		}
 		else {
-			bVar1 = pDebugBank->bInUse;
+			bSuccess = pFile->bInUse;
 		}
 	}
 	else {
-		bVar1 = true;
+		bSuccess = true;
 	}
-	return bVar1;
+
+	return bSuccess;
 }
 
 bool SetBankReadStream(edCFiler_28* param_1, edFILEH* pDebugBank, char* pReadBuffer, uint someSize)
@@ -224,23 +226,28 @@ bool SetBankReadStream(edCFiler_28* param_1, edFILEH* pDebugBank, char* pReadBuf
 		iVar2 = param_1->currentIndex;
 		param_1[(int)(iVar2 + uVar1) % 0x18].internalBank.nextAction = READ_STREAM;
 		puVar3 = &param_1[(int)(iVar2 + uVar1) % 0x18].internalBank;
+
 		if (param_1->freeIndexes == 0) {
 			param_1->nextAction = param_1[param_1->currentIndex].internalBank.nextAction;
 		}
+
 		param_1->freeIndexes = param_1->freeIndexes + 1;
 	}
+
 	if (puVar3 == (edCFiler_28_Internal*)0x0) {
 		puVar3 = (edCFiler_28_Internal*)0x0;
 	}
 	else {
 		puVar3->mode = 0;
 		puVar3->pDataBank = pDebugBank;
-		pDebugBank->count_0x228 = pDebugBank->count_0x228 + 1;
+		pDebugBank->nbQueuedActions = pDebugBank->nbQueuedActions + 1;
 	}
+
 	if (puVar3 != (edCFiler_28_Internal*)0x0) {
 		puVar3->pReadBuffer = pReadBuffer;
 		puVar3->seekOffset2 = someSize;
 	}
+
 	return puVar3 != (edCFiler_28_Internal*)0x0;
 }
 
@@ -267,7 +274,7 @@ bool SetBankSeek(edCFiler_28* param_1, edFILEH* pDebugBank, uint seekOffset)
 	else {
 		peVar3->mode = 0;
 		peVar3->pDataBank = pDebugBank;
-		pDebugBank->count_0x228 = pDebugBank->count_0x228 + 1;
+		pDebugBank->nbQueuedActions = pDebugBank->nbQueuedActions + 1;
 	}
 	if (peVar3 != (edCFiler_28_Internal*)0x0) {
 		peVar3->seekOffset = seekOffset;
@@ -323,42 +330,6 @@ bool edFileSeek(edFILEH* pDebugBank, uint seekOffset, ESeekMode mode)
 	return bVar1;
 }
 
-byte edFileRead(edFILEH* pDebugBank, char* pReadBuffer, uint someSize)
-{
-	byte bVar1;
-	edCFiler_28* peVar2;
-	byte* pbVar3;
-	int iVar4;
-
-	peVar2 = pDebugBank->pOwningFiler->GetGlobalC_0x1c();
-	SetBankReadStream(peVar2, pDebugBank, pReadBuffer, someSize);
-	if ((pDebugBank->openFlags & 8) == 0) {
-		edFileGetFiler(pDebugBank->pOwningFiler);
-		iVar4 = 0;
-		pbVar3 = edFileHandleTable;
-		do {
-			if ((edFILEH*)(pbVar3 + 0x10) == pDebugBank) {
-				bVar1 = edFileHandleTable[iVar4];
-				goto LAB_0025b580;
-			}
-			iVar4 = iVar4 + 1;
-			pbVar3 = pbVar3 + sizeof(edFILEH);
-		} while (iVar4 < 0x10);
-		bVar1 = 0;
-	LAB_0025b580:
-		if (bVar1 == 0) {
-			bVar1 = 1;
-		}
-		else {
-			bVar1 = pDebugBank->bInUse;
-		}
-	}
-	else {
-		bVar1 = 1;
-	}
-	return bVar1;
-}
-
 bool edFileFlush(void)
 {
 	edFileGetFiler((edCFiler*)0x0);
@@ -388,7 +359,7 @@ bool SetBankClose(edCFiler_28* param_1, edFILEH* pDataBank)
 	else {
 		peVar3->mode = 0;
 		peVar3->pDataBank = pDataBank;
-		pDataBank->count_0x228 = pDataBank->count_0x228 + 1;
+		pDataBank->nbQueuedActions = pDataBank->nbQueuedActions + 1;
 	}
 	return peVar3 != (edCFiler_28_Internal*)0x0;
 }
@@ -471,7 +442,7 @@ void _edFileInit(void)
 	return;
 }
 
-void ReadsBankFileHandler(int, int, char*)
+void edFileNoWaitStackFlush(int, int, char*)
 {
 	edFileNoWaitStackFlush();
 }
@@ -480,7 +451,6 @@ edFileLoadConfig edFileLoadInfo;
 
 bool edFileInit(void)
 {
-	bool bVar1;
 	edCFiler* piVar2;
 	bool bSuccess;
 	bool bVar3;
@@ -496,15 +466,16 @@ bool edFileInit(void)
 			bVar3 = false;
 		}
 	}
+
 	edFileLoadInfo.offset = 0;
 	edFileLoadInfo.heap = TO_HEAP(H_MAIN);
 	edFileLoadInfo.align = 0x40;
-	bVar1 = edSysHandlersAdd
-	(edSysHandlerVideo_0048cee0.nodeParent, edSysHandlerVideo_0048cee0.entries,
-		edSysHandlerVideo_0048cee0.maxEventID, ESHT_RenderScene, ReadsBankFileHandler, 3, 1);
-	if (bVar1 == false) {
+
+	// Also pump IO during our render.
+	if (edSysHandlersAdd(edVideoHandlers.nodeParent, edVideoHandlers.entries, edVideoHandlers.maxEventID, ED_HANDLER_VIDEO_RENDER, edFileNoWaitStackFlush, 3, 1) == false) {
 		bVar3 = false;
 	}
+
 	return bVar3;
 }
 
@@ -558,7 +529,7 @@ void edFileNoWaitStackCallBack(edCFiler_28* pFiler_28)
 						iVar7 = pFiler_28->freeIndexes;
 						while (iVar7 != 0) {
 							pDVar8 = pFiler_28[pFiler_28->currentIndex].internalBank.pDataBank;
-							pDVar8->count_0x228 = pDVar8->count_0x228 + -1;
+							pDVar8->nbQueuedActions = pDVar8->nbQueuedActions + -1;
 							IMPLEMENTATION_GUARD();
 							//CallFilerFunction_0025b7c0(pDVar8);
 							pFiler_28->freeIndexes = pFiler_28->freeIndexes + -1;
@@ -570,7 +541,7 @@ void edFileNoWaitStackCallBack(edCFiler_28* pFiler_28)
 						}
 						return;
 					}
-					pDVar8->count_0x228 = pDVar8->count_0x228 + -1;
+					pDVar8->nbQueuedActions = pDVar8->nbQueuedActions + -1;
 				}
 				if (true) {
 					MY_LOG("Doing file action {}\n", g_FileActionNames[(int)(pFilerSubObj->internalBank).nextAction]);
@@ -583,8 +554,7 @@ void edFileNoWaitStackCallBack(edCFiler_28* pFiler_28)
 					case READ_STREAM:
 						edSysHandlersCall(edFileHandlers.mainIdentifier,
 							edFileHandlers.entries,
-							edFileHandlers.maxEventID, 4, (pFilerSubObj->internalBank).pReadBuffer)
-							;
+							edFileHandlers.maxEventID, ED_HANDLER_FILE_READ, (pFilerSubObj->internalBank).pReadBuffer);
 						break;
 					case BANK_ACTION_3:
 						edSysHandlersCall(edFileHandlers.mainIdentifier,
@@ -691,7 +661,7 @@ void edFileNoWaitStackCallBack(edCFiler_28* pFiler_28)
 				iVar7 = pFiler_28->freeIndexes;
 				while (iVar7 != 0) {
 					pDVar8 = pFiler_28[pFiler_28->currentIndex].internalBank.pDataBank;
-					pDVar8->count_0x228 = pDVar8->count_0x228 + -1;
+					pDVar8->nbQueuedActions = pDVar8->nbQueuedActions + -1;
 					IMPLEMENTATION_GUARD();
 					//CallFilerFunction_0025b7c0(pDVar8);
 					pFiler_28->freeIndexes = pFiler_28->freeIndexes + -1;

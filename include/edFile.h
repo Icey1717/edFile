@@ -3,6 +3,7 @@
 
 #include "Types.h"
 #include "edMem.h"
+#include "EdenLib/edSys/sources/EdHandlers.h"
 
 class edCFiler;
 
@@ -544,7 +545,7 @@ struct edFILEH {
 	int seekOffset; /* Created by retype action */
 	uint openFlags;
 	DebugBankDataInternal field_0x10;
-	int count_0x228;
+	int nbQueuedActions;
 	byte bInUse;
 	undefined field_0x22d;
 	undefined field_0x22e;
@@ -558,21 +559,7 @@ enum ESeekMode {
 	ED_SEEK_END
 };
 
-
-struct edSysHandlerFile {
-	edSysHandlerFile(struct edSysHandlersNodeTable* inNodeParent, int inMaxEventID, int inMainIdentifier)
-		: nodeParent(inNodeParent)
-		, maxEventID(inMaxEventID)
-		, mainIdentifier(inMainIdentifier)
-	{
-
-	}
-
-	struct edSysHandlersNodeTable* nodeParent;
-	struct edSysHandlersPoolEntry* entries[16];
-	int maxEventID;
-	int mainIdentifier;
-};
+typedef edCSysHandlerSystem<ED_SYSTEM_HANDLER_FILE, &edSysHandlerMainPool, 16> edSysHandlerFile;
 
 extern byte edFileHandleTable[16];
 extern edFILEH edFileHandleData[16];
@@ -581,9 +568,8 @@ void* GetInternalData_0025b2e0(edFILEH* pDebugBankData);
 
 char* edFileOpen(char* filePath, uint* outSize, uint flags);
 edFILEH* edFileOpen(char* filePath, uint flags);
-uint GetFileSize_0025bd70(edFILEH* pDebugBank);
-bool SetRead_0025be80(edFILEH* pDebugBank, char* param_2, uint size);
-byte edFileRead(edFILEH* pDebugBank, char* pReadBuffer, uint someSize);
+uint edFileLoadSize(edFILEH* pDebugBank);
+bool edFileRead(edFILEH* pFile, char* pDst, uint size);
 
 bool SetBankReadStream(class edCFiler_28* param_1, edFILEH* pDebugBank, char* pReadBuffer, uint someSize);
 
@@ -610,6 +596,8 @@ struct edFileLoadConfig {
 };
 
 extern edFileLoadConfig edFileLoadInfo;
+
+#define ED_HANDLER_FILE_READ 4
 
 extern edSysHandlerFile edFileHandlers;
 

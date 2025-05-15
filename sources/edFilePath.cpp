@@ -1,5 +1,7 @@
 #include "edFilePath.h"
 
+#include <string.h>
+
 #include "edFileFiler.h"
 #include "edStr.h"
 

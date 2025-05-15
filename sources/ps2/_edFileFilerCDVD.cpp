@@ -11,7 +11,7 @@
 #include <vector>
 #endif
 
-#include "edSystem.h"
+#include "EdenLib/edSys/sources/EdSystem.h"
 #include "edFile.h"
 
 #include <assert.h>
@@ -184,9 +184,11 @@ bool edCFiler_CDVD::open(edFILEH* outFile, char* unformatedFilePath)
 					edDebugPrintf(sz_FileNotFound_00431280);
 				}
 #else
-				pcVar6 = edFilePathGetFilePath(fullFilePath);
+				char* pcFileFull = unformatedFilePath += strlen("<CDVD>");
 
-				char* pcFileFull = FormatForPC(pcVar6);
+				if (pcFileFull[0] == '0') {
+					pcFileFull += 3;
+				}
 
 				fp = fopen(pcFileFull, "rb");
 
@@ -197,7 +199,9 @@ bool edCFiler_CDVD::open(edFILEH* outFile, char* unformatedFilePath)
 					ret = 1;
 				}
 				else {
-					assert(fp);
+					//assert(fp);
+					ret = 0;
+					break;
 				}
 #endif
 			}
