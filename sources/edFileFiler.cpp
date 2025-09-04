@@ -2,10 +2,16 @@
 #include "edFile.h"
 #include "edStr.h"
 #include "edFilePath.h"
+#include "../include/edFileNoWaitStack.h"
 
 edCFilerList edFilerList;
 
-bool edCFiler::getfreespace(/*missing args*/)
+bool edCFiler::getfreespace(char* szPath, ulong* pFreeBytes, ulong* pFreeClusters, byte* param_5)
+{
+	return false;
+}
+
+bool edCFiler::isidle(char* szPath, int)
 {
 	return false;
 }
@@ -45,7 +51,7 @@ bool edCFiler::setattr(/*missing args*/)
 	return false;
 }
 
-bool edCFiler::mkdir(/*missing args*/)
+bool edCFiler::mkdir(char* szPath)
 {
 	return false;
 }
@@ -55,7 +61,7 @@ bool edCFiler::cmdbreak(/*missing args*/)
 	return false;
 }
 
-bool edCFiler::isnowaitcmdend(edCFiler_28_Internal* pEdFilerInternal)
+bool edCFiler::isnowaitcmdend(edFILE_STACK_ELEMENT* pEdFilerInternal)
 {
 	return false;
 }
@@ -65,7 +71,7 @@ bool edCFiler::waitcmdend(/*missing args*/)
 	return false;
 }
 
-bool edCFiler::erase(/*missing args*/)
+bool edCFiler::erase(char* szPath)
 {
 	return false;
 }
@@ -75,12 +81,12 @@ bool edCFiler::seek(edFILEH* pDebugBank)
 	return false;
 }
 
-bool edCFiler::write(/*missing args*/)
+bool edCFiler::write(edFILEH* pFile, void* pDst, uint size)
 {
 	return false;
 }
 
-uint edCFiler::read(edFILEH* pDebugBank, char* destination, uint requiredSize)
+uint edCFiler::read(edFILEH* pFile, void* pDst, uint requiredSize)
 {
 	return false;
 }
@@ -100,7 +106,7 @@ bool edCFiler::open(edFILEH* outFile, char* unformatedFilePath)
 	return false;
 }
 
-bool edCFiler::findfile()
+bool edCFiler::findfile(edCFileFind* pFileFind, int mode)
 {
 	return false;
 }
@@ -124,11 +130,9 @@ bool edCFiler::configure(char* path, ETableOfContentsInitMode mode, edFILE_PARAM
 	return false;
 }
 
-edCFiler_28 edCFiler_28_ARRAY_004697a0[24] = { 0 };
-
-edCFiler_28* edCFiler::GetGlobalC_0x1c()
+edCFileNoWaitStack* edCFiler::getnowaitfilestack()
 {
-	return edCFiler_28_ARRAY_004697a0;
+	return &edCFiler_28_ARRAY_004697a0;
 }
 
 bool edCFiler::terminate()
@@ -146,7 +150,7 @@ edCFiler::~edCFiler()
 	this->pDriveName_0x0 = (char*)0x0;
 	this->pPrevEd = (edCFiler*)0x0;
 	this->pNextEd = (edCFiler*)0x0;
-	this->field_0x4 = 0;
+	this->flags = 0;
 	filePath[0] = '\0';
 }
 
@@ -155,7 +159,7 @@ edCFiler::edCFiler()
 	this->pDriveName_0x0 = (char*)0x0;
 	this->pPrevEd = (edCFiler*)0x0;
 	this->pNextEd = (edCFiler*)0x0;
-	this->field_0x4 = 0;
+	this->flags = 0;
 	filePath[0] = '\0';
 	return;
 }
@@ -459,31 +463,6 @@ LAB_00261138:
 		}
 		*currentCharacter = '\0';
 	}
+
 	return pFiler;
-}
-
-void edFileGetFiler(edCFiler* pFiler)
-{
-	bool bVar1;
-	edCFiler* peVar2;
-	edCFiler_28* peVar3;
-
-	do {
-		bVar1 = true;
-		for (peVar2 = edFilerList.get_root(); peVar2 != (edCFiler*)0x0; peVar2 = peVar2->pNextEd) {
-			peVar3 = peVar2->GetGlobalC_0x1c();
-			if ((peVar3 != (edCFiler_28*)0x0) && (peVar3->freeIndexes != 0)) {
-				edFileNoWaitStackCallBack(peVar3);
-				if (pFiler == (edCFiler*)0x0) {
-					bVar1 = false;
-				}
-				else {
-					if (peVar2 == pFiler) {
-						bVar1 = false;
-					}
-				}
-			}
-		}
-	} while (!bVar1);
-	return;
 }

@@ -4,19 +4,23 @@
 
 #include "ps2/_edFileFilerCDVD.h"
 #include "edVideo/VideoD.h"
+#include "ps2/_edFileFilerMCard.h"
+#include "../include/edFileNoWaitStack.h"
 
 byte edFileHandleTable[16];
 edFILEH edFileHandleData[16];
 
 edSysHandlerFile edFileHandlers;
 
-void* GetInternalData_0025b2e0(edFILEH* pDebugBankData)
+edCFileFind edFileFind;
+
+void* GetInternalData_0025b2e0(edFILEH* pFile)
 {
 	void* pvVar1;
 
 	pvVar1 = (void*)0x0;
-	if ((pDebugBankData != (edFILEH*)0x0) &&
-		(pvVar1 = pDebugBankData->pFileData, pvVar1 == (void*)0x0)) {
+	if ((pFile != (edFILEH*)0x0) &&
+		(pvVar1 = pFile->pFileData, pvVar1 == (void*)0x0)) {
 		pvVar1 = (void*)0x0;
 	}
 	return pvVar1;
@@ -25,11 +29,10 @@ void* GetInternalData_0025b2e0(edFILEH* pDebugBankData)
 char* edFileOpen(char* filePath, uint* outSize, uint flags)
 {
 	byte bVar1;
-	edFILEH* pDebugBank;
-	edCFiler* peVar2;
+	edFILEH* pFile;
+	edCFiler* pFiler;
 	uint uVar3;
 	char* pReadBuffer;
-	edCFiler_28* peVar4;
 	byte* pbVar5;
 	int iVar6;
 	char acStack512[512];
@@ -37,41 +40,40 @@ char* edFileOpen(char* filePath, uint* outSize, uint flags)
 	MY_LOG("MessageFile::edFileOpen {}\n", filePath);
 
 	*outSize = 0;
-	pDebugBank = edFileOpen(filePath, flags | 1);
-	if (pDebugBank == (edFILEH*)0x0) {
+	pFile = edFileOpen(filePath, flags | 1);
+	if (pFile == (edFILEH*)0x0) {
 		pReadBuffer = (char*)0x0;
 	}
 	else {
-		peVar2 = edFileGetFiler(acStack512, filePath, 0);
-		if (peVar2 == (edCFiler*)0x0) {
+		pFiler = edFileGetFiler(acStack512, filePath, 0);
+		if (pFiler == (edCFiler*)0x0) {
 			pReadBuffer = (char*)0x0;
 		}
 		else {
 			uVar3 = 0;
-			if ((pDebugBank->openFlags & 6) == 0) {
-				uVar3 = (pDebugBank->field_0x10).fileSize;
+			if ((pFile->openFlags & 6) == 0) {
+				uVar3 = (pFile->fileInfo).fileSize;
 				//peVar7 = peVar2->pVTable;
 			}
 			else {
 				//peVar7 = peVar2->pVTable;
 			}
 
-			uVar3 = peVar2->getalignedsize(uVar3);
-			*outSize = uVar3;
-			pReadBuffer = (char*)edMemAllocAlignBoundary(edFileLoadInfo.heap, *outSize, (uint)edFileLoadInfo.align,
-				(uint)edFileLoadInfo.offset);
+			*outSize = pFiler->getalignedsize(uVar3);
+
+			pReadBuffer = (char*)edMemAllocAlignBoundary(edFileLoadInfo.heap, *outSize, (uint)edFileLoadInfo.align, (uint)edFileLoadInfo.offset);
 			edFileLoadInfo.offset = 0;
 			edFileLoadInfo.heap = TO_HEAP(H_MAIN);
 			edFileLoadInfo.align = 0x40;
-			peVar4 = peVar2->GetGlobalC_0x1c();
-			SetBankReadStream(peVar4, pDebugBank, pReadBuffer, *outSize);
-			peVar4 = peVar2->GetGlobalC_0x1c();
-			SetBankClose(peVar4, pDebugBank);
-			if ((pDebugBank->openFlags & 8) == 0) {
-				edFileGetFiler(pDebugBank->pOwningFiler);
+
+			pFiler->getnowaitfilestack()->AddFileRead(pFile, pReadBuffer, *outSize);
+			pFiler->getnowaitfilestack()->AddFileClose(pFile);
+
+			if ((pFile->openFlags & 8) == 0) {
+				edFileNoWaitStackFlush(pFile->pOwningFiler);
 				iVar6 = 0;
 				do {
-					if (&edFileHandleData[iVar6] == pDebugBank) {
+					if (&edFileHandleData[iVar6] == pFile) {
 						bVar1 = edFileHandleTable[iVar6];
 						goto LAB_0025bac8;
 					}
@@ -83,7 +85,7 @@ char* edFileOpen(char* filePath, uint* outSize, uint flags)
 					bVar1 = 1;
 				}
 				else {
-					bVar1 = pDebugBank->bInUse;
+					bVar1 = pFile->bInUse;
 				}
 			}
 			else {
@@ -118,13 +120,13 @@ edFILEH* edFileOpen(char* szFilePath, uint flags)
 		pFile = (edFILEH*)0x0;
 	}
 	else {
-		if (((flags & 8) != 0) && ((pFiler->field_0x4 & 0x20U) == 0)) {
+		if (((flags & 8) != 0) && ((pFiler->flags & 0x20) == 0)) {
 			flags = flags & 0xfffffff7;
 		}
-		if ((((flags & 2) == 0) || (pFile = (edFILEH*)0x0, (pFiler->field_0x4 & 2U) != 0)) &&
-			(((flags & 4) == 0 || (pFile = (edFILEH*)0x0, (pFiler->field_0x4 & 4U) != 0)))) {
-			if (((flags & 8) == 0) || ((pFiler->field_0x4 & 0x80U) != 0)) {
-				edFileGetFiler(pFiler);
+		if ((((flags & 2) == 0) || (pFile = (edFILEH*)0x0, (pFiler->flags & 2) != 0)) &&
+			(((flags & 4) == 0 || (pFile = (edFILEH*)0x0, (pFiler->flags & 4) != 0)))) {
+			if (((flags & 8) == 0) || ((pFiler->flags & 0x80) != 0)) {
+				edFileNoWaitStackFlush(pFiler);
 			}
 			bankIndex = 0;
 			do {
@@ -166,29 +168,79 @@ edFILEH* edFileOpen(char* szFilePath, uint flags)
 	return pFile;
 }
 
+bool edFileMakeDir(char* szPath)
+{
+	bool bSuccess;
+	edCFiler* pFiler;
+	char szFilerPath[512];
+
+	pFiler = edFileGetFiler(szFilerPath, szPath, 1);
+	if (pFiler == (edCFiler*)0x0) {
+		bSuccess = false;
+	}
+	else {
+		bSuccess = pFiler->mkdir(szFilerPath);
+	}
+
+	return bSuccess;
+}
+
 uint edFileLoadSize(edFILEH* pDebugBank)
 {
 	uint uVar1;
 
 	uVar1 = 0;
 	if ((pDebugBank->openFlags & 6) == 0) {
-		uVar1 = (pDebugBank->field_0x10).fileSize;
+		uVar1 = (pDebugBank->fileInfo).fileSize;
 	}
 	return uVar1;
+}
+
+
+int edFileIsIdle(char* szPath, int param_2)
+{
+	edCFiler* pFiler;
+	int iVar1;
+	char szFilerPath[512];
+
+	pFiler = edFileGetFiler(szFilerPath, szPath, 1);
+	if (pFiler == (edCFiler*)0x0) {
+		iVar1 = 0;
+	}
+	else {
+		iVar1 = pFiler->isidle(szFilerPath, param_2);
+	}
+
+	return iVar1;
+}
+
+bool edFileGetFreeSpace(char* szPath, ulong* pFreeBytes, ulong* pFreeClusters, byte* param_4)
+{
+	bool bResult;
+	edCFiler* pFiler;
+	char szFilerPath[512];
+
+	pFiler = edFileGetFiler(szFilerPath, szPath, 1);
+	if (pFiler == (edCFiler*)0x0) {
+		bResult = false;
+	}
+	else {
+		bResult = pFiler->getfreespace(szFilerPath, pFreeBytes, pFreeClusters, param_4);
+	}
+
+	return bResult;
 }
 
 bool edFileRead(edFILEH* pFile, char* pDst, uint size)
 {
 	byte bVar2;
 	bool bSuccess;
-	edCFiler_28* pFilerData;
 	int handleIndex;
 
-	pFilerData = pFile->pOwningFiler->GetGlobalC_0x1c();
-	SetBankReadStream(pFilerData, pFile, pDst, size);
+	pFile->pOwningFiler->getnowaitfilestack()->AddFileRead(pFile, pDst, size);
 
 	if ((pFile->openFlags & 8) == 0) {
-		edFileGetFiler(pFile->pOwningFiler);
+		edFileNoWaitStackFlush(pFile->pOwningFiler);
 		handleIndex = 0;
 		do {
 			if (&edFileHandleData[handleIndex] == pFile) {
@@ -214,88 +266,20 @@ bool edFileRead(edFILEH* pFile, char* pDst, uint size)
 	return bSuccess;
 }
 
-bool SetBankReadStream(edCFiler_28* param_1, edFILEH* pDebugBank, char* pReadBuffer, uint someSize)
-{
-	uint uVar1;
-	int iVar2;
-	edCFiler_28_Internal* puVar3;
 
-	uVar1 = param_1->freeIndexes;
-	puVar3 = (edCFiler_28_Internal*)0x0;
-	if (uVar1 < 0x18) {
-		iVar2 = param_1->currentIndex;
-		param_1[(int)(iVar2 + uVar1) % 0x18].internalBank.nextAction = READ_STREAM;
-		puVar3 = &param_1[(int)(iVar2 + uVar1) % 0x18].internalBank;
-
-		if (param_1->freeIndexes == 0) {
-			param_1->nextAction = param_1[param_1->currentIndex].internalBank.nextAction;
-		}
-
-		param_1->freeIndexes = param_1->freeIndexes + 1;
-	}
-
-	if (puVar3 == (edCFiler_28_Internal*)0x0) {
-		puVar3 = (edCFiler_28_Internal*)0x0;
-	}
-	else {
-		puVar3->mode = 0;
-		puVar3->pDataBank = pDebugBank;
-		pDebugBank->nbQueuedActions = pDebugBank->nbQueuedActions + 1;
-	}
-
-	if (puVar3 != (edCFiler_28_Internal*)0x0) {
-		puVar3->pReadBuffer = pReadBuffer;
-		puVar3->seekOffset2 = someSize;
-	}
-
-	return puVar3 != (edCFiler_28_Internal*)0x0;
-}
-
-bool SetBankSeek(edCFiler_28* param_1, edFILEH* pDebugBank, uint seekOffset)
-{
-	uint uVar1;
-	int iVar2;
-	edCFiler_28_Internal* peVar3;
-
-	uVar1 = param_1->freeIndexes;
-	peVar3 = (edCFiler_28_Internal*)0x0;
-	if (uVar1 < 0x18) {
-		iVar2 = param_1->currentIndex;
-		param_1[(int)(iVar2 + uVar1) % 0x18].internalBank.nextAction = SEEK;
-		peVar3 = &param_1[(int)(iVar2 + uVar1) % 0x18].internalBank;
-		if (param_1->freeIndexes == 0) {
-			param_1->nextAction = param_1[param_1->currentIndex].internalBank.nextAction;
-		}
-		param_1->freeIndexes = param_1->freeIndexes + 1;
-	}
-	if (peVar3 == (edCFiler_28_Internal*)0x0) {
-		peVar3 = (edCFiler_28_Internal*)0x0;
-	}
-	else {
-		peVar3->mode = 0;
-		peVar3->pDataBank = pDebugBank;
-		pDebugBank->nbQueuedActions = pDebugBank->nbQueuedActions + 1;
-	}
-	if (peVar3 != (edCFiler_28_Internal*)0x0) {
-		peVar3->seekOffset = seekOffset;
-	}
-	return peVar3 != (edCFiler_28_Internal*)0x0;
-}
-
-bool edFileSeek(edFILEH* pDebugBank, uint seekOffset, ESeekMode mode)
+bool edFileSeek(edFILEH* pFile, uint seekOffset, ESeekMode mode)
 {
 	byte bVar2;
-	bool bVar1;
-	edCFiler_28* peVar3;
+	bool bSuccess;
 	byte* pbVar4;
 	int iVar5;
 
 	if (mode == ED_SEEK_END) {
-		seekOffset = (pDebugBank->field_0x10).fileSize + seekOffset;
+		seekOffset = (pFile->fileInfo).fileSize + seekOffset;
 	}
 	else {
 		if (mode == ED_SEEK_CUR) {
-			seekOffset = pDebugBank->seekOffset + seekOffset;
+			seekOffset = pFile->seekOffset + seekOffset;
 		}
 		else {
 			if (mode != ED_SEEK_SET) {
@@ -303,13 +287,14 @@ bool edFileSeek(edFILEH* pDebugBank, uint seekOffset, ESeekMode mode)
 			}
 		}
 	}
-	peVar3 = pDebugBank->pOwningFiler->GetGlobalC_0x1c();
-	SetBankSeek(peVar3, pDebugBank, seekOffset);
-	if ((pDebugBank->openFlags & 8) == 0) {
-		edFileGetFiler(pDebugBank->pOwningFiler);
+
+	pFile->pOwningFiler->getnowaitfilestack()->AddFileSeek(pFile, seekOffset);
+
+	if ((pFile->openFlags & 8) == 0) {
+		edFileNoWaitStackFlush(pFile->pOwningFiler);
 		iVar5 = 0;
 		do {
-			if (&edFileHandleData[iVar5] == pDebugBank) {
+			if (&edFileHandleData[iVar5] == pFile) {
 				bVar2 = edFileHandleTable[iVar5];
 				goto LAB_0025b788;
 			}
@@ -318,66 +303,79 @@ bool edFileSeek(edFILEH* pDebugBank, uint seekOffset, ESeekMode mode)
 		bVar2 = 0;
 	LAB_0025b788:
 		if (bVar2 == 0) {
-			bVar1 = true;
+			bSuccess = true;
 		}
 		else {
-			bVar1 = (bool)pDebugBank->bInUse;
+			bSuccess = (bool)pFile->bInUse;
 		}
 	}
 	else {
-		bVar1 = true;
+		bSuccess = true;
 	}
-	return bVar1;
+
+	return bSuccess;
 }
 
 bool edFileFlush(void)
 {
-	edFileGetFiler((edCFiler*)0x0);
+	edFileNoWaitStackFlush((edCFiler*)0x0);
 	return true;
 }
 
-bool SetBankClose(edCFiler_28* param_1, edFILEH* pDataBank)
+bool edFileWrite(edFILEH* pFile, void* pData, uint size)
 {
-	uint uVar1;
-	int iVar2;
-	edCFiler_28_Internal* peVar3;
+	byte bVar1;
+	bool bSuccess;
+	byte* pbVar2;
+	int iVar3;
 
-	uVar1 = param_1->freeIndexes;
-	peVar3 = (edCFiler_28_Internal*)0x0;
-	if (uVar1 < 0x18) {
-		iVar2 = param_1->currentIndex;
-		param_1[(int)(iVar2 + uVar1) % 0x18].internalBank.nextAction = CLOSE;
-		peVar3 = &param_1[(int)(iVar2 + uVar1) % 0x18].internalBank;
-		if (param_1->freeIndexes == 0) {
-			param_1->nextAction = param_1[param_1->currentIndex].internalBank.nextAction;
+	pFile->pOwningFiler->getnowaitfilestack()->AddFileWrite(pFile, pData, size);
+
+	if ((pFile->openFlags & 8) == 0) {
+		edFileNoWaitStackFlush(pFile->pOwningFiler);
+
+		iVar3 = 0;
+		do {
+			if (&edFileHandleData[iVar3] == pFile) {
+				bVar1 = edFileHandleTable[iVar3];
+				goto LAB_0025b660;
+			}
+
+			iVar3 = iVar3 + 1;
+		} while (iVar3 < 0x10);
+
+		bVar1 = 0;
+
+	LAB_0025b660:
+		if (bVar1 == 0) {
+			bSuccess = true;
 		}
-		param_1->freeIndexes = param_1->freeIndexes + 1;
-	}
-	if (peVar3 == (edCFiler_28_Internal*)0x0) {
-		peVar3 = (edCFiler_28_Internal*)0x0;
+		else {
+			bSuccess = pFile->bInUse;
+		}
 	}
 	else {
-		peVar3->mode = 0;
-		peVar3->pDataBank = pDataBank;
-		pDataBank->nbQueuedActions = pDataBank->nbQueuedActions + 1;
+		bSuccess = true;
 	}
-	return peVar3 != (edCFiler_28_Internal*)0x0;
+
+	return bSuccess;
 }
 
-bool edFileClose(edFILEH* pDebugBank)
+bool edFileClose(edFILEH* pFile)
 {
 	byte bVar2;
 	bool bVar1;
-	edCFiler_28* peVar3;
+	edCFileNoWaitStack* peVar3;
 	int iVar5;
 
-	peVar3 = pDebugBank->pOwningFiler->GetGlobalC_0x1c();
-	SetBankClose(peVar3, pDebugBank);
-	if ((pDebugBank->openFlags & 8) == 0) {
-		edFileGetFiler(pDebugBank->pOwningFiler);
+	pFile->pOwningFiler->getnowaitfilestack()->AddFileClose(pFile);
+
+	if ((pFile->openFlags & 8) == 0) {
+		edFileNoWaitStackFlush(pFile->pOwningFiler);
+
 		iVar5 = 0;
 		do {
-			if (&edFileHandleData[iVar5] == pDebugBank) {
+			if (&edFileHandleData[iVar5] == pFile) {
 				bVar2 = edFileHandleTable[iVar5];
 				goto LAB_0025b4b0;
 			}
@@ -389,7 +387,7 @@ bool edFileClose(edFILEH* pDebugBank)
 			bVar1 = true;
 		}
 		else {
-			bVar1 = (bool)pDebugBank->bInUse;
+			bVar1 = (bool)pFile->bInUse;
 		}
 	}
 	else {
@@ -398,21 +396,12 @@ bool edFileClose(edFILEH* pDebugBank)
 	return bVar1;
 }
 
-const char* sz_edCBankBuffer_Wait_0042fb70 = "edCBankBufferEntry::file_access: Wait for end of previous loading operation \n";
-
-void edFileNoWaitStackFlush(void)
+bool edFileCmdBreak(edFILEH* pFile)
 {
-	edCFiler* peVar1;
-	edCFiler_28* peVar2;
-
-	for (peVar1 = edFilerList.get_root(); peVar1 != (edCFiler*)0x0; peVar1 = peVar1->pNextEd) {
-		peVar2 = peVar1->GetGlobalC_0x1c();
-		if (peVar2 != (edCFiler_28*)0x0) {
-			edFileNoWaitStackCallBack(peVar2);
-		}
-	}
-	return;
+	return pFile->pOwningFiler->cmdbreak();
 }
+
+const char* sz_edCBankBuffer_Wait_0042fb70 = "edCBankBufferEntry::file_access: Wait for end of previous loading operation \n";
 
 uint edFileGetSize(edFILEH* param_1)
 {
@@ -420,7 +409,7 @@ uint edFileGetSize(edFILEH* param_1)
 
 	uVar1 = 0;
 	if ((param_1->openFlags & 6) == 0) {
-		uVar1 = (param_1->field_0x10).fileSize;
+		uVar1 = (param_1->fileInfo).fileSize;
 	}
 	return uVar1;
 }
@@ -434,7 +423,7 @@ void _edFileInit(void)
 	//	g_NetFilePtr_00448fd4 = (undefined*)edFileOpen(PTR_s_NetFile.log_00448930, 6);
 	//	edSysHandlers::edSysHandlersAdd(edSysHandlersNodeParent_0048cee0.pNodeTable, edSysHandlersNodeParent_0048cee0.pTypeArray_0x4, (long)g_SysHandlersMainMaxEventID_0048cf10, New_Name, FUN_00260ae0, 1, 0);
 	//}
-	//_edFileMCardAddFiler();
+	_edFileMCardAddFiler();
 	//_edFileHostPcAddFiler();
 	_edFileCDVDAddFiler();
 	//_edFileNetAddFiler();
@@ -442,7 +431,7 @@ void _edFileInit(void)
 	return;
 }
 
-void edFileNoWaitStackFlush(int, int, char*)
+void edFileGetFiler(int, int, char*)
 {
 	edFileNoWaitStackFlush();
 }
@@ -472,212 +461,11 @@ bool edFileInit(void)
 	edFileLoadInfo.align = 0x40;
 
 	// Also pump IO during our render.
-	if (edSysHandlersAdd(edVideoHandlers.nodeParent, edVideoHandlers.entries, edVideoHandlers.maxEventID, ED_HANDLER_VIDEO_RENDER, edFileNoWaitStackFlush, 3, 1) == false) {
+	if (edSysHandlersAdd(edVideoHandlers.nodeParent, edVideoHandlers.entries, edVideoHandlers.maxEventID, ED_HANDLER_VIDEO_RENDER, edFileGetFiler, 3, 1) == false) {
 		bVar3 = false;
 	}
 
 	return bVar3;
-}
-
-// #Hack
-char* g_FileActionNames[] = {
-	"BANK_ACTION_3",
-	"BANK_ACTION_5",
-	"CLOSE",
-	"LOAD",
-	"OPEN",
-	"READ_STREAM",
-	"SEEK"
-};
-
-void edFileNoWaitStackCallBack(edCFiler_28* pFiler_28)
-{
-	EBankAction EVar1;
-	int puVar1;
-	edCFiler* pFiler;
-	bool bVar2;
-	ulong uVar3;
-	long lVar4;
-	edCFiler_28* pFilerSubObj;
-	edCFiler* pDVar5;
-	byte* pbVar6;
-	int iVar7;
-	ulong in_a3;
-	edFILEH* pDVar8;
-	edCFiler_28_Internal* peVar9;
-
-	if (pFiler_28->freeIndexes != 0) {
-		EVar1 = pFiler_28->nextAction;
-		pFilerSubObj = pFiler_28 + pFiler_28->currentIndex;
-		if (EVar1 == LOAD) {
-			iVar7 = (pFilerSubObj->internalBank).mode;
-			pDVar8 = (edFILEH*)0x0;
-			pDVar5 = (edCFiler*)0x0;
-			if (iVar7 == 0) {
-				pDVar8 = (pFilerSubObj->internalBank).pDataBank;
-				pDVar5 = pDVar8->pOwningFiler;
-			}
-			else {
-				if (iVar7 == 1) {
-					pDVar5 = (edCFiler*)(pFilerSubObj->internalBank).pDataBank;
-				}
-			}
-			lVar4 = pDVar5->isnowaitcmdend(&pFilerSubObj->internalBank);
-			if (lVar4 != 0) {
-				if ((pFilerSubObj->internalBank).mode == 0) {
-					if (pDVar8->bInUse == 0) {
-						iVar7 = pFiler_28->freeIndexes;
-						while (iVar7 != 0) {
-							pDVar8 = pFiler_28[pFiler_28->currentIndex].internalBank.pDataBank;
-							pDVar8->nbQueuedActions = pDVar8->nbQueuedActions + -1;
-							IMPLEMENTATION_GUARD();
-							//CallFilerFunction_0025b7c0(pDVar8);
-							pFiler_28->freeIndexes = pFiler_28->freeIndexes + -1;
-							pFiler_28->currentIndex = pFiler_28->currentIndex + 1;
-							if (pFiler_28->currentIndex == 0x18) {
-								pFiler_28->currentIndex = 0;
-							}
-							iVar7 = pFiler_28->freeIndexes;
-						}
-						return;
-					}
-					pDVar8->nbQueuedActions = pDVar8->nbQueuedActions + -1;
-				}
-				if (true) {
-					MY_LOG("Doing file action {}\n", g_FileActionNames[(int)(pFilerSubObj->internalBank).nextAction]);
-					switch ((pFilerSubObj->internalBank).nextAction) {
-					case SEEK:
-						edSysHandlersCall(edFileHandlers.mainIdentifier,
-							edFileHandlers.entries,
-							edFileHandlers.maxEventID, 6, (void*)0x0);
-						break;
-					case READ_STREAM:
-						edSysHandlersCall(edFileHandlers.mainIdentifier,
-							edFileHandlers.entries,
-							edFileHandlers.maxEventID, ED_HANDLER_FILE_READ, (pFilerSubObj->internalBank).pReadBuffer);
-						break;
-					case BANK_ACTION_3:
-						edSysHandlersCall(edFileHandlers.mainIdentifier,
-							edFileHandlers.entries,
-							edFileHandlers.maxEventID, 5,
-							*(void**)&(pFilerSubObj->internalBank).field_0x18);
-						break;
-					case CLOSE:
-						edSysHandlersCall(edFileHandlers.mainIdentifier,
-							edFileHandlers.entries,
-							edFileHandlers.maxEventID, 3, (void*)0x0);
-						if ((pDVar8->openFlags & 0x20) == 0) {
-							iVar7 = 0;
-							do {
-								if (&edFileHandleData[iVar7] == pDVar8) {
-									edFileHandleTable[iVar7] = 0;
-									memset(&edFileHandleData[iVar7], 0, sizeof(edFILEH));
-									break;
-								}
-								iVar7 = iVar7 + 1;
-							} while (iVar7 < 0x10);
-						}
-					}
-				}
-				pFiler_28->freeIndexes = pFiler_28->freeIndexes + -1;
-				if (pFiler_28->freeIndexes != 0) {
-					pFiler_28->currentIndex = pFiler_28->currentIndex + 1;
-					if (pFiler_28->currentIndex == 0x18) {
-						pFiler_28->currentIndex = 0;
-						peVar9 = &pFiler_28->internalBank;
-					}
-					else {
-						peVar9 = &pFilerSubObj[1].internalBank;
-					}
-					pFiler_28->nextAction = peVar9->nextAction;
-				}
-			}
-		}
-		else {
-			iVar7 = (pFilerSubObj->internalBank).mode;
-			if (iVar7 == 1) {
-				if (EVar1 == BANK_ACTION_5) {
-					IMPLEMENTATION_GUARD();
-					uVar3 = 0; //(*(code*)((pFilerSubObj->internalBank).pDataBank)->pOwningFiler[2].baseData.field_0x4)();
-					in_a3 = uVar3 & 0xff;
-				}
-				else {
-					in_a3 = 0;
-				}
-			}
-			else {
-				if (iVar7 == 0) {
-					pDVar8 = (pFilerSubObj->internalBank).pDataBank;
-					pFiler = pDVar8->pOwningFiler;
-					pDVar8->action = EVar1;
-					EVar1 = pFiler_28->nextAction;
-					MY_LOG("Doing file action {}\n", g_FileActionNames[(int)EVar1]);
-					if (EVar1 == CLOSE) {
-						bVar2 = pFiler->close(pDVar8);
-						in_a3 = bVar2 & 0xff;
-					}
-					else {
-						if (EVar1 == BANK_ACTION_3) {
-							IMPLEMENTATION_GUARD();
-							uVar3 = 0; //(*(code*)pFiler->pVTable->field_0x44)(pFiler, pDVar8, *(undefined4*)&(pFilerSubObj->internalBank).field_0x18, pFilerSubObj[1].freeIndexes);
-							in_a3 = uVar3 & 0xff;
-							if (in_a3 != 0) {
-								pDVar8->seekOffset = pDVar8->seekOffset + pFilerSubObj[1].freeIndexes;
-							}
-						}
-						else {
-							if (EVar1 == READ_STREAM) {
-								uVar3 = pFiler->read(pDVar8, (pFilerSubObj->internalBank).pReadBuffer, (pFilerSubObj->internalBank).seekOffset2);
-								in_a3 = uVar3 & 0xff;
-								if (in_a3 != 0) {
-									pDVar8->seekOffset = pDVar8->seekOffset + (pFilerSubObj->internalBank).seekOffset2;
-								}
-							}
-							else {
-								if (EVar1 == SEEK) {
-									pDVar8->seekOffset = (pFilerSubObj->internalBank).seekOffset;
-									bVar2 = pFiler->seek(pDVar8);
-									in_a3 = (long)bVar2 & 0xff;
-								}
-								else {
-									if (EVar1 == OPEN) {
-										IMPLEMENTATION_GUARD();
-										bVar2 = 0; //(*pFiler->pVTable->open)(pFiler, pDVar8, (char*)pFilerSubObj[1].field_0x8);
-										in_a3 = (long)bVar2 & 0xff;
-									}
-									else {
-										in_a3 = 0;
-									}
-								}
-							}
-						}
-					}
-					if (in_a3 != 0) {
-						pDVar8->bInUse = 1;
-					}
-				}
-			}
-			if (in_a3 == 0) {
-				iVar7 = pFiler_28->freeIndexes;
-				while (iVar7 != 0) {
-					pDVar8 = pFiler_28[pFiler_28->currentIndex].internalBank.pDataBank;
-					pDVar8->nbQueuedActions = pDVar8->nbQueuedActions + -1;
-					IMPLEMENTATION_GUARD();
-					//CallFilerFunction_0025b7c0(pDVar8);
-					pFiler_28->freeIndexes = pFiler_28->freeIndexes + -1;
-					pFiler_28->currentIndex = pFiler_28->currentIndex + 1;
-					if (pFiler_28->currentIndex == 0x18) {
-						pFiler_28->currentIndex = 0;
-					}
-					iVar7 = pFiler_28->freeIndexes;
-				}
-			}
-			else {
-				pFiler_28->nextAction = LOAD;
-			}
-		}
-	}
-	return;
 }
 
 bool edFileGetPhysicalFileName(char* filePathOut, char* filePathIn)
@@ -700,4 +488,80 @@ bool edFileGetPhysicalFileName(char* filePathOut, char* filePathIn)
 		}
 	}
 	return uVar1;
+}
+
+bool edFileFindFirst(edFILE_INFO* pFileInfo, char* pName)
+{
+	bool bResult;
+
+	if ((edFileFind.bOpen == 0) && (pFileInfo != (edFILE_INFO*)0x0)) {
+		memset(&edFileFind, 0, sizeof(edCFileFind));
+		edFileFind.bOpen = 1;
+		edFileFind.pFileInfo = pFileInfo;
+		memset(pFileInfo, 0, sizeof(edFILE_INFO));
+
+		edFileFind.pFiler = edFileGetFiler(edFileFind.szSlotPathA, pName, 0);
+		if (edFileFind.pFiler == (edCFiler*)0x0) {
+			bResult = false;
+		}
+		else {
+			bResult = edFileFind.pFiler->findfile(&edFileFind, ED_FIND_FIRST);
+			if (bResult == false) {
+				if (edFileFind.bOpen != 0) {
+					if (edFileFind.pFiler != (edCFiler*)0x0) {
+						edFileFind.bOpen = 0;
+						edFileFind.pFiler->findfile(&edFileFind, ED_FIND_CLOSE);
+					}
+				}
+				bResult = false;
+			}
+			else {
+				bResult = true;
+			}
+		}
+	}
+	else {
+		bResult = false;
+	}
+
+	return bResult;
+}
+
+bool edFileFindClose(void)
+{
+	if ((edFileFind.bOpen != 0) && (edFileFind.pFiler != (edCFiler*)0x0)) {
+		edFileFind.bOpen = 0;
+		return edFileFind.pFiler->findfile(&edFileFind, ED_FIND_CLOSE);
+	}
+
+	return false;
+}
+
+bool edFileDelete(char* szPath)
+{
+	bool bResult;
+	edCFiler* pFiler;
+	char szFilerPath[512];
+
+	pFiler = edFileGetFiler(szFilerPath, szPath, 0);
+	if (pFiler == (edCFiler*)0x0) {
+		bResult = false;
+	}
+	else {
+		bResult = pFiler->erase(szFilerPath);
+	}
+	return bResult;
+}
+
+edFILE_INFO* GetFileInfoFromFile(edFILEH* pFile)
+{
+	edFILE_INFO* pFileInfo;
+
+	pFileInfo = &pFile->fileInfo;
+
+	if ((pFile->openFlags & 6) != 0) {
+		pFileInfo = (edFILE_INFO*)0x0;
+	}
+
+	return pFileInfo;
 }

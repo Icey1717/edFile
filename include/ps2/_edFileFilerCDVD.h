@@ -3,9 +3,10 @@
 
 #include "Types.h"
 #include "edFileFiler.h"
+#include "EdenLib/edFile/include/edFileNoWaitStack.h"
 
-
-struct edCdlFolder {
+struct edCdlFolder
+{
 	char name[12];
 	undefined4 field_0xc;
 	uint lsn;
@@ -17,7 +18,8 @@ struct edCdlFolder {
 	uint flag;
 };
 
-struct CDFileContainer {
+struct CDFileContainer
+{
 	int fd;
 	sceCdlFILE file;
 };
@@ -27,7 +29,8 @@ struct CDFileContainer {
 char* FormatForPC(char* inString);
 #endif
 
-class edCFiler_CDVD_Toc {
+class edCFiler_CDVD_Toc
+{
 public:
 	bool Initialize(edCdlFolder* pFolder, int size);
 	bool InitTOC_0025d530(edCdlFolder* pFolder);
@@ -52,13 +55,14 @@ public:
 
 	virtual bool configure(char* path, ETableOfContentsInitMode mode, edFILE_PARAMETER* param_4);
 	virtual bool initialize();
-	virtual edCFiler_28* GetGlobalC_0x1c();
+	virtual edCFileNoWaitStack* getnowaitfilestack();
 	virtual bool get_physical_filename(char* filePathOut, char* pathBuff);
 	virtual bool open(edFILEH* outFile, char* unformatedFilePath);
 	virtual bool close(edFILEH* pDebugBank);
-	virtual uint read(edFILEH* pDebugBank, char* destination, uint requiredSize);
+	virtual uint read(edFILEH* pDebugBank, void* pData, uint requiredSize);
 	virtual bool seek(edFILEH* pDebugBank);
-	virtual bool isnowaitcmdend(edCFiler_28_Internal* pEdFilerInternal);
+	virtual bool isnowaitcmdend(edFILE_STACK_ELEMENT* pEdFilerInternal);
+	virtual bool cmdbreak();
 
 private:
 	undefined field_0x24;
@@ -559,7 +563,7 @@ private:
 	undefined field_0x213;
 	byte aContainerInUse[16];
 	CDFileContainer aFileContainers[16];
-	edCFiler_28 field_0x4a4[24];
+	edCFileNoWaitStack field_0x4a4;
 	undefined field_0x864;
 	undefined field_0x865;
 	undefined field_0x866;

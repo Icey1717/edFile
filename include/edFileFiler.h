@@ -4,33 +4,18 @@
 #include "Types.h"
 
 struct edFILEH;
+class edCFileFind;
+class edCFileNoWaitStack;
+struct edFILE_STACK_ELEMENT;
 
-enum ETableOfContentsInitMode {
+enum ETableOfContentsInitMode
+{
 	IM_CALC_SIZE = 2,
 	IM_INIT = 1
 };
 
-struct edCFiler_28_Internal {
-	EBankAction nextAction;
-	int mode;
-	edFILEH* pDataBank;
-	int seekOffset;
-	char* pReadBuffer;
-	int seekOffset2;
-	undefined field_0x18;
-	undefined field_0x19;
-	undefined field_0x1a;
-	undefined field_0x1b;
-};
-
-struct edCFiler_28 {
-	int freeIndexes;
-	int currentIndex;
-	EBankAction nextAction;
-	edCFiler_28_Internal internalBank;
-};
-
-struct edFILE_PARAMETER {
+struct edFILE_PARAMETER
+{
 	void* field_0x0;
 	undefined field_0x4;
 	undefined field_0x5;
@@ -39,7 +24,8 @@ struct edFILE_PARAMETER {
 	int* field_0x8;
 };
 
-class edCFiler {
+class edCFiler
+{
 public:
 	edCFiler();
 	~edCFiler();
@@ -47,7 +33,8 @@ public:
 	virtual bool configure(uint);
 	virtual bool configure(char* path, ETableOfContentsInitMode mode, edFILE_PARAMETER* param_4);
 	virtual bool initialize();
-	virtual edCFiler_28* GetGlobalC_0x1c();
+	virtual bool terminate();
+	virtual edCFileNoWaitStack* getnowaitfilestack();
 	virtual void set_default_unit(char* szDriveLetter);
 	virtual int get_default_unit(char* outString);
 	virtual bool get_physical_filename(char* outFilePath, char* pathBuff);
@@ -55,24 +42,24 @@ public:
 	virtual bool unmount_unit(char* filePath);
 	virtual bool open(edFILEH* outFile, char* unformatedFilePath);
 	virtual bool close(edFILEH* pDebugBank);
-	virtual uint read(edFILEH* pDebugBank, char* destination, uint requiredSize);
+	virtual uint read(edFILEH* pFile, void* pDst, uint requiredSize);
 	virtual bool seek(edFILEH* pDebugBank);
-	virtual bool isnowaitcmdend(edCFiler_28_Internal* pEdFilerInternal);
-	virtual uint getalignedsize(uint inSize);
-	virtual bool terminate();
-	virtual bool findfile();
+	virtual bool isnowaitcmdend(edFILE_STACK_ELEMENT* pEdFilerInternal);
+	virtual bool findfile(edCFileFind* pFileFind, int mode);
 	virtual bool create(/*missing args*/);
-	virtual bool write(/*missing args*/);
-	virtual bool erase(/*missing args*/);
+	virtual bool write(edFILEH* pFile, void* pDst, uint size);
+	virtual bool erase(char* szPath);
 	virtual bool waitcmdend(/*missing args*/);
 	virtual bool cmdbreak(/*missing args*/);
-	virtual bool mkdir(/*missing args*/);
+	virtual bool mkdir(char* szPath);
 	virtual bool setattr(/*missing args*/);
+	virtual bool getfreespace(char* szPath, ulong* pFreeBytes, ulong* pFreeClusters, byte* param_5);
+	virtual bool isidle(char* szPath, int);
 	virtual bool format(/*missing args*/);
-	virtual bool getfreespace(/*missing args*/);
+	virtual uint getalignedsize(uint inSize);
 
 	char* pDriveName_0x0;
-	int field_0x4;
+	uint flags;
 	struct edCFiler* pPrevEd;
 	struct edCFiler* pNextEd;
 	char filePath[16];
@@ -91,7 +78,7 @@ extern edCFilerList edFilerList;
 
 edCFiler* edFileGetFiler(char* outString, char* filePath, long mode);
 bool edFileFilerConfigure(char* path, ETableOfContentsInitMode mode, void* param_3, int* param_4);
-void edFileGetFiler(edCFiler* pFiler);
+void edFileNoWaitStackFlush(edCFiler* pFiler);
 
 
 #endif //_ED_FILE_FILER_H

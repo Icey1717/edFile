@@ -35,14 +35,12 @@ edCFiler_CDVD::edCFiler_CDVD()
 		iVar2 = iVar2 + 1;
 	} while (iVar2 < 0x10);
 
-	field_0x4a4[0].freeIndexes = 0;
-	field_0x4a4[0].currentIndex = 0;
-	field_0x4a4[0].nextAction = LOAD;
 	toc.bLoaded = 0;
 	toc.pCurrentFolder = (edCdlFolder*)0x0;
 	toc.offset = 0;
 	toc.pNextFreeEntry = (edCdlFolder*)0x0;
 	toc.objCount_0x14 = 0;
+
 	return;
 }
 
@@ -66,13 +64,13 @@ bool edCFiler_CDVD::initialize()
 	this->pDriveName_0x0 = sz_CDVD_Drive_004312f8;
 	this->iopBuf = 0;
 	set_default_unit(sz_DriveLetter_00431300);
-	this->field_0x4 = 0x61;
+	this->flags = 0x61;
 	return true;
 }
 
-edCFiler_28* edCFiler_CDVD::GetGlobalC_0x1c()
+edCFileNoWaitStack* edCFiler_CDVD::getnowaitfilestack()
 {
-	return field_0x4a4;
+	return &field_0x4a4;
 }
 
 #if defined(PLATFORM_WIN)
@@ -86,17 +84,6 @@ char* FormatForPC(char* inString)
 	return inString;
 }
 #endif
-
-DebugBankDataInternal* GetDebugBankInternal(edFILEH* param_1)
-{
-	DebugBankDataInternal* pDVar1;
-
-	pDVar1 = &param_1->field_0x10;
-	if ((param_1->openFlags & 6) != 0) {
-		pDVar1 = (DebugBankDataInternal*)0x0;
-	}
-	return pDVar1;
-}
 
 #ifdef PLATFORM_WIN
 std::vector<FILE*> g_FileDescriptors;
@@ -119,7 +106,7 @@ bool edCFiler_CDVD::open(edFILEH* outFile, char* unformatedFilePath)
 	int fileNameLength;
 	char* postColonFilePath;
 	bool success;
-	DebugBankDataInternal* pDVar7;
+	edFILE_INFO* pFileInfo;
 	int newFd;
 	void* pNewIopBuf;
 	byte* pbVar8;
@@ -237,29 +224,21 @@ bool edCFiler_CDVD::open(edFILEH* outFile, char* unformatedFilePath)
 		else {
 			/* Found file successfully */
 			outFile->pFileData = bufferStart;
-			pDVar7 = GetDebugBankInternal(outFile);
-			pDVar7->fileSize = (bufferStart->file).size;
-			pDVar7->field_0x14 = 0x22;
-			uVar1 = (bufferStart->file).date[3];
-			uVar2 = (bufferStart->file).date[2];
-			*(u_char*)pDVar7 = (bufferStart->file).date[1];
-			*(u_char*)&pDVar7->field_0x1 = uVar2;
-			*(u_char*)&pDVar7->field_0x2 = uVar1;
-			bVar3 = (bufferStart->file).date[7];
-			bVar4 = (bufferStart->file).date[6];
-			uVar1 = (bufferStart->file).date[5];
-			*(u_char*)&pDVar7->field_0x4 = (bufferStart->file).date[4];
-			*(u_char*)&pDVar7->field_0x5 = uVar1;
-			*(ushort*)&pDVar7->field_0x6 = (ushort)bVar4 + (ushort)bVar3 * 0x100;
-			*(undefined*)&pDVar7->field_0x8 = *(undefined*)pDVar7;
-			*(undefined*)&pDVar7->field_0x9 = *(undefined*)&pDVar7->field_0x1;
-			*(undefined*)&pDVar7->field_0xa = *(undefined*)&pDVar7->field_0x2;
-			*(undefined*)&pDVar7->field_0xb = *(undefined*)&pDVar7->field_0x3;
-			*(undefined*)&pDVar7->field_0xc = *(undefined*)&pDVar7->field_0x4;
-			*(undefined*)&pDVar7->field_0xd = *(undefined*)&pDVar7->field_0x5;
-			/* Copy file name into object */
-			*(undefined2*)&pDVar7->field_0xe = *(undefined2*)&pDVar7->field_0x6;
-			edStrCopy(pDVar7->name, (bufferStart->file).name);
+			pFileInfo = GetFileInfoFromFile(outFile);
+			pFileInfo->fileSize = (bufferStart->file).size;
+			pFileInfo->flags = 0x22;
+
+			(pFileInfo->create).sec = (bufferStart->file).date[1];
+			(pFileInfo->create).min = (bufferStart->file).date[2];
+			(pFileInfo->create).hour = (bufferStart->file).date[3];
+			(pFileInfo->create).day = (bufferStart->file).date[4];
+			(pFileInfo->create).month = (bufferStart->file).date[5];
+			(pFileInfo->create).year = (ushort)(bufferStart->file).date[6] + (ushort)(bufferStart->file).date[7] * 0x100;
+
+			pFileInfo->modify = pFileInfo->create;
+
+			edStrCopy(pFileInfo->name, (bufferStart->file).name);
+
 			if ((openFlags & 8) == 0) {
 #if defined(PLATFORM_PS2)
 				bufferStart->fd = -1;
@@ -337,7 +316,7 @@ bool edCFiler_CDVD::close(edFILEH* pDebugBank)
 	return bVar1;
 }
 
-uint edCFiler_CDVD::read(edFILEH* pDebugBank, char* destination, uint requiredSize)
+uint edCFiler_CDVD::read(edFILEH* pDebugBank, void* pData, uint requiredSize)
 {
 	CDFileContainer* paVar1;
 	int iVar2;
@@ -360,16 +339,16 @@ uint edCFiler_CDVD::read(edFILEH* pDebugBank, char* destination, uint requiredSi
 				while (iVar2 == 0) {
 #ifdef PLATFORM_PS2
 					sceCdDiskReady(0);
-					iVar2 = sceRead(paVar1->fd, destination, requiredSize);
+					iVar2 = sceRead(paVar1->fd, pData, requiredSize);
 #else
-					iVar2 = fread(destination, 1, requiredSize, g_FileDescriptors[paVar1->fd]);
+					iVar2 = fread(pData, 1, requiredSize, g_FileDescriptors[paVar1->fd]);
 #endif
 				}
 			}
 			else {
 #ifdef PLATFORM_PS2
 				do {
-					readBytes = sceCdStRead(requiredSize >> 0xb, (u_int*)destination, 1, &readError);
+					readBytes = sceCdStRead(requiredSize >> 0xb, (u_int*)pData, 1, &readError);
 				} while ((readBytes & 0x1fffff) == 0);
 #else
 				IMPLEMENTATION_GUARD();
@@ -387,10 +366,10 @@ uint edCFiler_CDVD::read(edFILEH* pDebugBank, char* destination, uint requiredSi
 			}
 			do {
 				sceCdDiskReady(0);
-				iVar2 = sceCdRead((paVar1->file).lsn + ((uint)pDebugBank->seekOffset >> 0xb), readBytes, destination, &local_4);
+				iVar2 = sceCdRead((paVar1->file).lsn + ((uint)pDebugBank->seekOffset >> 0xb), readBytes, pData, &local_4);
 			} while (iVar2 == 0);
 #else
-			iVar2 = fread(destination, 1, requiredSize, g_FileDescriptors[paVar1->fd]);
+			iVar2 = fread(pData, 1, requiredSize, g_FileDescriptors[paVar1->fd]);
 			assert(iVar2 > 0);
 #endif
 		}
@@ -428,7 +407,7 @@ bool edCFiler_CDVD::seek(edFILEH* pDebugBank)
 	return bVar1;
 }
 
-bool edCFiler_CDVD::isnowaitcmdend(edCFiler_28_Internal* pEdFilerInternal)
+bool edCFiler_CDVD::isnowaitcmdend(edFILE_STACK_ELEMENT* pEdFilerInternal)
 {
 	bool bVar1;
 	CDFileContainer* pInternalData;
@@ -437,13 +416,13 @@ bool edCFiler_CDVD::isnowaitcmdend(edCFiler_28_Internal* pEdFilerInternal)
 	int iVar3;
 	EBankAction action;
 
-	pInternalData = (CDFileContainer*)GetInternalData_0025b2e0(pEdFilerInternal->pDataBank);
+	pInternalData = (CDFileContainer*)GetInternalData_0025b2e0(reinterpret_cast<edFILEH*>(pEdFilerInternal->pData));
 	if (pInternalData == (CDFileContainer*)0x0) {
 		bVar1 = false;
 	}
 	else {
-		action = pEdFilerInternal->nextAction;
-		if (((action == BANK_ACTION_3) || (action == READ_STREAM)) || (action == SEEK)) {
+		action = pEdFilerInternal->action;
+		if (((action == EBankAction::WRITE) || (action == EBankAction::READ)) || (action == EBankAction::SEEK)) {
 #ifdef PLATFORM_PS2
 			iVar3 = sceCdSync(1);
 			if (iVar3 == 1) {
@@ -524,7 +503,7 @@ bool edCFiler_CDVD::isnowaitcmdend(edCFiler_28_Internal* pEdFilerInternal)
 #endif
 		}
 		else {
-			if (action == CLOSE) {
+			if (action == EBankAction::CLOSE) {
 				iVar3 = 0;
 				pbVar2 = this->aContainerInUse;
 				do {
@@ -539,7 +518,7 @@ bool edCFiler_CDVD::isnowaitcmdend(edCFiler_28_Internal* pEdFilerInternal)
 				bVar1 = true;
 			}
 			else {
-				if (action == LOAD) {
+				if (action == EBankAction::LOAD) {
 					bVar1 = true;
 				}
 				else {
@@ -549,6 +528,16 @@ bool edCFiler_CDVD::isnowaitcmdend(edCFiler_28_Internal* pEdFilerInternal)
 		}
 	}
 	return bVar1;
+}
+
+bool edCFiler_CDVD::cmdbreak()
+{
+#ifdef PLATFORM_PS2
+	sceCdDiskReady(0);
+	return sceReadCDData() == 0;
+#else
+	return true;
+#endif
 }
 
 char* sz_CDVD_Toc_Init_00431310 = "edCFiler_CDVD_Toc::Initialize: ** Test of CheckISO\n";
@@ -840,8 +829,8 @@ edCdlFolder* edCFiler_CDVD_Toc::FindEdCFile(char* filePath)
 			peVar4 = peVar4 + pcVar4->folderCount;
 			if (pcVar4->fileCount != 0) {
 				do {
-					MY_LOG("File: Comparing {} to {}\n", folderNameBuffer, (char*)peVar4);
-					iVar2 = edStrICmp((byte*)folderNameBuffer, (byte*)peVar4);
+					MY_LOG("File: Comparing {} to {}\n", folderNameBuffer, peVar4->name);
+					iVar2 = edStrICmp(folderNameBuffer, peVar4->name);
 					if (iVar2 == 0) {
 						return peVar4;
 					}
@@ -856,8 +845,8 @@ edCdlFolder* edCFiler_CDVD_Toc::FindEdCFile(char* filePath)
 		uVar3 = 0;
 		if (pcVar4->folderCount != 0) {
 			do {
-				MY_LOG("Folder: Comparing {} to {}\n", folderNameBuffer, (char*)peVar4);
-				iVar2 = edStrICmp((byte*)folderNameBuffer, (byte*)peVar4);
+				MY_LOG("Folder: Comparing {} to {}\n", folderNameBuffer, peVar4->name);
+				iVar2 = edStrICmp(folderNameBuffer, peVar4->name);
 				if (iVar2 == 0) {
 					bVar1 = true;
 					pcVar4 = peVar4;
