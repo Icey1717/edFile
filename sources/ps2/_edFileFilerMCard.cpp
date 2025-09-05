@@ -549,9 +549,61 @@ bool edCFiler_MemoryCard::close(edFILEH* pFile)
 	return bSuccess;
 }
 
-uint edCFiler_MemoryCard::read(edFILEH* pFile, void* destination, uint requiredSize)
+#ifdef PLATFORM_WIN
+static bool WinFileRead(MC_OpenFile* pOpenFile, void* pDst, uint requiredSize)
 {
-	IMPLEMENTATION_GUARD();
+	if (pOpenFile->pStream) {
+		std::ifstream* pIfStream = dynamic_cast<std::ifstream*>(static_cast<std::istream*>(pOpenFile->pStream));
+		if (pIfStream) {
+			if (pIfStream->is_open()) {
+				pIfStream->read(static_cast<char*>(pDst), requiredSize);
+				return pIfStream->good();
+			}
+			return false;
+		}
+		std::fstream* pFStream = dynamic_cast<std::fstream*>(static_cast<std::iostream*>(pOpenFile->pStream));
+		if (pFStream) {
+			if (pFStream->is_open()) {
+				pFStream->read(static_cast<char*>(pDst), requiredSize);
+				return pFStream->good();
+			}
+			return false;
+		}
+
+		// Not a readable stream
+		return false;
+	}
+
+	return false; // No stream to read from
+}
+#endif
+
+uint edCFiler_MemoryCard::read(edFILEH* pFile, void* pDst, uint requiredSize)
+{
+	bool bSuccess;
+	MC_OpenFile* pOpenFile;
+	int iVar1;
+
+	pOpenFile = (MC_OpenFile*)GetInternalData_0025b2e0(pFile);
+	if (pOpenFile == (MC_OpenFile*)0x0) {
+		bSuccess = false;
+	}
+	else {
+#ifdef PLATFORM_PS2
+		iVar1 = sceMcRead(pOpenFile->syncResult, pDst, requiredSize);
+		if (iVar1 < 0) {
+			MCardSceXxxDecodeValue(iVar1);
+			bSuccess = false;
+		}
+		else {
+			bSuccess = true;
+		}
+#else
+		bSuccess = WinFileRead(pOpenFile, pDst, requiredSize);
+#endif
+	}
+
+	return bSuccess;
 }
 
 #ifdef PLATFORM_WIN
