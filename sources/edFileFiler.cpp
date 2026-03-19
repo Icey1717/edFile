@@ -1,8 +1,8 @@
-#include "edFileFiler.h"
-#include "edFile.h"
+#include "edFile/edFileFiler.h"
+#include "edFile/edFile.h"
 #include "edStr.h"
-#include "edFilePath.h"
-#include "../include/edFileNoWaitStack.h"
+#include "edFile/edFilePath.h"
+#include "edFile/edFileNoWaitStack.h"
 
 edCFilerList edFilerList;
 

@@ -1,6 +1,6 @@
-#include "edFileNoWaitStack.h"
-#include "edFile.h"
-#include "edFileFiler.h"
+#include "edFile/edFileNoWaitStack.h"
+#include "edFile/edFile.h"
+#include "edFile/edFileFiler.h"
 
 edCFileNoWaitStack edCFiler_28_ARRAY_004697a0;
 

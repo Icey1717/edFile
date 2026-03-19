@@ -1,4 +1,4 @@
-#include "ps2/_edFileFilerCDVD.h"
+#include "edFile/ps2/_edFileFilerCDVD.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -12,11 +12,11 @@
 #endif
 
 #include "EdenLib/edSys/sources/EdSystem.h"
-#include "edFile.h"
+#include "edFile/edFile.h"
 
 #include <assert.h>
 #include "edStr.h"
-#include "edFilePath.h"
+#include "edFile/edFilePath.h"
 
 edCFiler_CDVD edFiler_CDVD;
 

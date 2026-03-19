@@ -1,6 +1,6 @@
-#include "ps2/_edFileFilerMCard.h"
-#include "edFilePath.h"
-#include "edFile.h"
+#include "edFile/ps2/_edFileFilerMCard.h"
+#include "edFile/edFilePath.h"
+#include "edFile/edFile.h"
 
 #ifdef PLATFORM_PS2
 // MC Includes

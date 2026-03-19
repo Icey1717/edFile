@@ -1,4 +1,4 @@
-#include "edFileCRC32.h"
+#include "edFile/edFileCRC32.h"
 
 uint edCRC32Table[256] =
 {

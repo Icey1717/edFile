@@ -1,8 +1,8 @@
-#include "edFilePath.h"
+#include "edFile/edFilePath.h"
 
 #include <string.h>
 
-#include "edFileFiler.h"
+#include "edFile/edFileFiler.h"
 #include "edStr.h"
 
 edCFilePathManager edFilePathManager;

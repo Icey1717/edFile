@@ -1,11 +1,11 @@
-#include "edFile.h"
+#include "edFile/edFile.h"
 #include "EdenLib/edSys/sources/EdSystem.h"
 #include "edMem.h"
 
-#include "ps2/_edFileFilerCDVD.h"
+#include "edFile/ps2/_edFileFilerCDVD.h"
 #include "edVideo/VideoD.h"
-#include "ps2/_edFileFilerMCard.h"
-#include "../include/edFileNoWaitStack.h"
+#include "edFile/ps2/_edFileFilerMCard.h"
+#include "edFile/edFileNoWaitStack.h"
 
 byte edFileHandleTable[16];
 edFILEH edFileHandleData[16];
@@ -414,6 +414,7 @@ uint edFileGetSize(edFILEH* param_1)
 	return uVar1;
 }
 
+// Should be in: D:/Projects/EdenLib/edFile/sources/ps2/_edFile.cpp
 void _edFileInit(void)
 {
 	byte bVar1;
